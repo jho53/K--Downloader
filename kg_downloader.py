@@ -3,7 +3,6 @@ from selenium import webdriver
 import requests
 import time
 import os
-import shutil
 
 # Global Constants
 OUTPUT_PATH = "./output/"
@@ -53,12 +52,11 @@ def provision(soup):
     # Progress update
     print("Current Account: " + acc_name)
 
-    # Remove account files if exists and re-create
+    #  creates account dir if do not exist
     acc_file_path = os.path.join(OUTPUT_PATH, acc_name)
 
-    if os.path.exists(acc_file_path):
-        shutil.rmtree(acc_file_path, ignore_errors=True)
-    os.mkdir(acc_file_path)
+    if not os.path.exists(acc_file_path):
+        os.mkdir(acc_file_path)
 
     # Extract songs from albums
     album_links = [link['href']
@@ -85,33 +83,35 @@ def song_extract(album_soup, acc_file_path):
     for link in song_links:
         # Create soup for song page w/ Selenium
         driver.get(link)
-        time.sleep(1)
+        time.sleep(1)  # Allow JS to fully load
         song_soup = BeautifulSoup(driver.page_source, "lxml")
 
         audio_elem = song_soup.find("audio")
         audio_src = audio_elem['src']
         audio_name = "{0}.mp3".format(audio_elem['meta'])
+        audio_path = os.path.join(acc_file_path, audio_name)
 
-        print("Song: {}".format(audio_name))
+        print("Song: {}...".format(audio_name), end="")
 
-        mp3_file = requests.get(audio_src, allow_redirects=True)
-        
-        with open(os.path.join(acc_file_path, audio_name), 'wb') as f:
-            f.write(mp3_file.content)
-
-        # urllib.request.urlretrieve(
-        #     audio_src, os.path.join(album_file_path, audio_name))
+        # Skip if song already exists
+        if not os.path.exists(audio_path):
+            mp3_file = requests.get(audio_src, allow_redirects=True)
+            with open(os.path.join(acc_file_path, audio_path), 'wb') as f:
+                f.write(mp3_file.content)
+            print("100%")
+        else:
+            print("Already exists, skip")
 
 
 if __name__ == "__main__":
-    # Test
-    links = ['https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6fb1f69cd8b9efa698bf4a8b1281848c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb8f799d8bbeaa09cbe408e128e828c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb9f39ed8beeca39bbf4e821281ec800ad1d212acef67ce&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb4fa9fd8bdeea198b94d8b1686ec800ad1d212acef67ce&g_f=personal&appsource=',
-             'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb3fb9fd8b9e4ad9cbc4b8b1585878c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf68b8f495d8bfe4a39dbe488f1687ec800ad1d212acef67ce&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176dabbcec2cb6cb2f49dd8beeca39eb041831780878c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176dab5c9cfce6db4f599d8bbeca69eb8408d118e848c36d2d13c81e170d691&g_f=personal&appsource=']
+    # # Test
+    # links = ['https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6fb1f69cd8b9efa698bf4a8b1281848c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb8f799d8bbeaa09cbe408e128e828c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb9f39ed8beeca39bbf4e821281ec800ad1d212acef67ce&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb4fa9fd8bdeea198b94d8b1686ec800ad1d212acef67ce&g_f=personal&appsource=',
+    #          'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf6cb3fb9fd8b9e4ad9cbc4b8b1585878c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176d9b3c8cfcf68b8f495d8bfe4a39dbe488f1687ec800ad1d212acef67ce&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176dabbcec2cb6cb2f49dd8beeca39eb041831780878c36d2d13c81e170d691&g_f=personal&appsource=', 'https://node.kg.qq.com/album?s=6b9c9c83202d308b352176dab5c9cfce6db4f599d8bbeca69eb8408d118e848c36d2d13c81e170d691&g_f=personal&appsource=']
+    
+    # for link in links:
+    #     req = requests.get(link, HEADERS)
+    #     album_soup = BeautifulSoup(req.content, 'lxml')
 
-    for link in links:
-        req = requests.get(link, HEADERS)
-        album_soup = BeautifulSoup(req.content, 'lxml')
+    #     song_extract(album_soup, OUTPUT_PATH)
 
-        song_extract(album_soup, OUTPUT_PATH)
-
-    # main()
+    main()
